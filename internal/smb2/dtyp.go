@@ -148,3 +148,79 @@ func (c SidDecoder) Decode() *Sid {
 		SubAuthority:        c.SubAuthority(),
 	}
 }
+
+type AceDecoder []byte
+
+func (c AceDecoder) IsInvalid() bool {
+	if len(c) < 4 {
+		return true
+	}
+
+	if len(c) < 4 + int(c.Size()) {
+		return true
+	}
+
+	return false
+}
+
+func (c AceDecoder) Size() uint16 {
+	return le.Uint16(c[2:4])
+}
+
+func (c AceDecoder) AceType() uint8 {
+	return c[0]
+}
+
+func (c AceDecoder) Flags() uint8 {
+	return c[1]
+}
+
+func (c AceDecoder) AccessMask() uint32 {
+	return le.Uint32(c[4:8])
+}
+
+func (c AceDecoder) Sid() string {
+	return SidDecoder(c[8:]).Decode().String()
+}
+
+// func (c AceDecoder) Decode() *Ace {
+// 	return &Ace{
+// 		Sid: c.Sid(),
+// 		AceType: c.AceType(),
+// 		Flags: c.Flags(),
+// 		AccessMask: c.AccessMask(),
+// 	}
+// }
+
+type AclDecoder []byte
+
+func (c AclDecoder) IsInvalid() bool {
+	if len(c) < 8 {
+		return true
+	}
+
+	if len(c) < 8 + int(c.Size()) {
+		return true
+	}
+
+	return false
+}
+
+func (c AclDecoder) Size() uint16 {
+	return le.Uint16(c[2:4])
+}
+
+func (c AclDecoder) Decode() []AceDecoder{
+	acl := []AceDecoder{}
+
+	count := le.Uint16(c[4:6])
+	aceData := c[8:]
+
+	for i := 0; i < int(count); i++ {
+		ad := AceDecoder(aceData)
+		acl = append(acl, ad)
+		aceData = aceData[ad.Size():]
+	}
+
+	return acl
+}

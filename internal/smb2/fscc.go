@@ -695,3 +695,35 @@ func (c FileNameInformationDecoder) FileNameLength() uint32 {
 func (c FileNameInformationDecoder) FileName() string {
 	return utf16le.DecodeToString(c[4 : 4+c.FileNameLength()])
 }
+
+type FileSecDescInformationDecoder []byte
+
+func (c FileSecDescInformationDecoder) IsInvalid() bool {
+	return len(c) < 20
+}
+
+func (c FileSecDescInformationDecoder) Flags() uint16 {
+	return le.Uint16(c[2:4])
+}
+
+func (c FileSecDescInformationDecoder) Owner() *Sid {
+	return SidDecoder(c[le.Uint32(c[4:8]):]).Decode()
+}
+
+func (c FileSecDescInformationDecoder) Group() *Sid {
+	return SidDecoder(c[le.Uint32(c[8:12]):]).Decode()
+}
+
+func (c FileSecDescInformationDecoder) SACL() []AceDecoder {
+	if offset := le.Uint32(c[12:16]); offset != 0 {
+		return AclDecoder(c[offset:]).Decode()
+	}
+	return nil
+}
+
+func (c FileSecDescInformationDecoder) DACL() []AceDecoder {
+	if offset := le.Uint32(c[16:20]); offset != 0 {
+		return AclDecoder(c[offset:]).Decode()
+	}
+	return nil
+}

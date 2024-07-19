@@ -525,6 +525,39 @@ func (fs *Share) Rename(oldpath, newpath string) error {
 	return nil
 }
 
+func (fs *Share) GetSecurity(name string) (*SecDesc, error) {
+	name = normPath(name)
+	if err := validatePath("get security", name, false); err != nil {
+		return nil, err
+	}
+
+	create := &CreateRequest{
+		SecurityFlags:        0,
+		RequestedOplockLevel: SMB2_OPLOCK_LEVEL_NONE,
+		ImpersonationLevel:   Impersonation,
+		SmbCreateFlags:       0,
+		DesiredAccess:        READ_CONTROL | FILE_READ_DATA | FILE_READ_EA | FILE_READ_ATTRIBUTES | SYNCHRONIZE,
+		FileAttributes:       0,
+		ShareAccess:          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+		CreateDisposition:    FILE_OPEN,
+		CreateOptions:        0,
+	}
+
+	f, err := fs.createFile(name, create, false)
+	if err != nil {
+		return nil, &os.PathError{Op: "get security", Path: name, Err: err}
+	}
+
+	sd, err := f.secdesc()
+	if e := f.close(); err == nil {
+		err = e
+	}
+	if err != nil {
+		return nil, &os.PathError{Op: "secdesc", Path: name, Err: err}
+	}
+	return sd, nil
+}
+
 // Symlink mimics os.Symlink.
 // This API should work on latest Windows and latest MacOS.
 // However it may not work on Linux because Samba doesn't support reparse point well.
@@ -2118,4 +2151,58 @@ func (fs *FileStat) IsDir() bool {
 
 func (fs *FileStat) Sys() interface{} {
 	return fs
+}
+
+type SecDesc struct {
+	Flags uint16
+	Owner string
+	Group string
+	DACL []*Ace
+	SACL []*Ace
+}
+
+type Ace struct {
+	Sid string
+	AceType uint8
+	Flags uint8
+	AccessMask uint32
+}
+
+func (f * File) secdesc() (*SecDesc, error) {
+	req := &QueryInfoRequest{
+		InfoType: INFO_SECURITY,
+		FileInfoClass:			0,
+		Flags:                 0,
+		OutputBufferLength:    uint32(f.maxTransactSize()),
+		AdditionalInformation: OWNER_SECURITY_INFORMATION | GROUP_SECUIRTY_INFORMATION | DACL_SECUIRTY_INFORMATION,
+	}
+
+	infoBytes, err := f.queryInfo(req)
+	if err != nil {
+		return nil, err
+	}
+
+	info := FileSecDescInformationDecoder(infoBytes)
+	if info.IsInvalid() {
+		return nil, &InvalidResponseError{"broken query info response format"}
+	}
+
+	Dacl := []*Ace{}
+	Sacl := []*Ace{}
+
+	for _, ad := range info.DACL() {
+		Dacl = append(Dacl, &Ace{ad.Sid(), ad.AceType(), ad.Flags(), ad.AccessMask()})
+	}
+
+	for _, ad := range info.SACL() {
+		Sacl = append(Dacl, &Ace{ad.Sid(), ad.AceType(), ad.Flags(), ad.AccessMask()})
+	}
+
+	return &SecDesc{
+		Flags: info.Flags(),
+		Owner: info.Owner().String(),
+		Group: info.Group().String(),
+		DACL: Dacl,
+		SACL: Sacl,
+	}, nil
 }
