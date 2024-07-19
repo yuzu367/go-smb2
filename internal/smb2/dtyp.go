@@ -91,7 +91,7 @@ func (sid *Sid) Encode(p []byte) {
 	p[0] = sid.Revision
 	p[1] = uint8(len(sid.SubAuthority))
 	for j := 0; j < 6; j++ {
-		p[2+j] = byte(sid.IdentifierAuthority >> uint64(8*(6-j)))
+		p[2+j] = byte(sid.IdentifierAuthority >> uint64(8*(5-j)))
 	}
 	off := 8
 	for _, u := range sid.SubAuthority {
