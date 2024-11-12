@@ -704,6 +704,8 @@ func (conn *conn) tryVerify(pkt []byte, isEncrypted bool) error {
 
 	msgId := p.MessageId()
 
+	conn.session.sign(pkt)
+
 	if msgId != 0xFFFFFFFFFFFFFFFF {
 		if p.Flags()&SMB2_FLAGS_SIGNED != 0 {
 			if conn.session == nil || conn.session.sessionId != p.SessionId() {
