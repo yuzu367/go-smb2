@@ -328,7 +328,7 @@ func (fs *Share) OpenFile(name string, flag int, perm os.FileMode) (*File, error
 		CreateOptions:        FILE_SYNCHRONOUS_IO_NONALERT,
 	}
 
-	f, err := fs.createFile(name, req, false)
+	f, err := fs.createFile(name, req, true)
 	if err != nil {
 		return nil, &os.PathError{Op: "open", Path: name, Err: err}
 	}
