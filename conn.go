@@ -518,7 +518,7 @@ func (conn *conn) runReciever() {
 			goto exit
 		}
 
-		hasSession := conn.useSession()
+		hasSession := false
 
 		var isEncrypted bool
 
@@ -703,8 +703,6 @@ func (conn *conn) tryVerify(pkt []byte, isEncrypted bool) error {
 	p := PacketCodec(pkt)
 
 	msgId := p.MessageId()
-
-	conn.session.sign(pkt)
 
 	if msgId != 0xFFFFFFFFFFFFFFFF {
 		if p.Flags()&SMB2_FLAGS_SIGNED != 0 {
