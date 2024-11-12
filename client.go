@@ -839,6 +839,12 @@ func (fs *Share) ReadDir(dirname string) ([]os.FileInfo, error) {
 
 	sort.Slice(fis, func(i, j int) bool { return fis[i].Name() < fis[j].Name() })
 
+	f.Sync()
+
+	if err := f.Close(); err != nil {
+		return fis, err
+	}
+
 	return fis, nil
 }
 
@@ -2157,21 +2163,21 @@ type SecDesc struct {
 	Flags uint16
 	Owner string
 	Group string
-	DACL []*Ace
-	SACL []*Ace
+	DACL  []*Ace
+	SACL  []*Ace
 }
 
 type Ace struct {
-	Sid string
-	AceType uint8
-	Flags uint8
+	Sid        string
+	AceType    uint8
+	Flags      uint8
 	AccessMask uint32
 }
 
-func (f * File) secdesc() (*SecDesc, error) {
+func (f *File) secdesc() (*SecDesc, error) {
 	req := &QueryInfoRequest{
-		InfoType: INFO_SECURITY,
-		FileInfoClass:			0,
+		InfoType:              INFO_SECURITY,
+		FileInfoClass:         0,
 		Flags:                 0,
 		OutputBufferLength:    uint32(f.maxTransactSize()),
 		AdditionalInformation: OWNER_SECURITY_INFORMATION | GROUP_SECUIRTY_INFORMATION | DACL_SECUIRTY_INFORMATION,
@@ -2202,7 +2208,7 @@ func (f * File) secdesc() (*SecDesc, error) {
 		Flags: info.Flags(),
 		Owner: info.Owner().String(),
 		Group: info.Group().String(),
-		DACL: Dacl,
-		SACL: Sacl,
+		DACL:  Dacl,
+		SACL:  Sacl,
 	}, nil
 }
